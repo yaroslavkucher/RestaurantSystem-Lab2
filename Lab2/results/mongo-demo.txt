@@ -1,0 +1,56 @@
+[SQL target: docker]
+== MongoDB demo ==
+
+1) Приклад документа (той самий відгук у SQL займає рядки в 6 таблицях):
+{
+  "_id" : 28,
+  "restaurantId" : 1,
+  "customerId" : 5525,
+  "orderId" : 363776,
+  "createdAt" : { "$date" : "2025-06-25T11:18:00.081Z" },
+  "rating" : 4,
+  "comment" : "Страви гарячі та смачні. Ціни трохи завищені. Порції великі.",
+  "aspects" : {
+    "ambience" : 4,
+    "speed" : 4,
+    "parking" : 3,
+    "service" : 5
+  },
+  "tags" : ["гарний-вид"],
+  "dishes" : [{
+      "menuItemId" : 69,
+      "name" : "Бограч від шефа",
+      "rating" : 3
+    }],
+  "photos" : [{
+      "url" : "https://cdn.restaurant.local/reviews/28/1.jpg"
+    }],
+  "reply" : {
+    "userId" : 1,
+    "text" : "Нам дуже приємно! Передамо подяку кухні.",
+    "createdAt" : { "$date" : "2025-06-26T07:18:00.081Z" }
+  }
+}
+
+2) Пошук по вкладеному полю масиву: відгуки, де страву #5 оцінили на 1
+   db.reviews.countDocuments({dishes: {$elemMatch: {menuItemId: 5, rating: 1}}}) = 38
+
+3) Гнучка схема: відгуки, в яких оцінено 'parking' на <= 2 (поле є не в усіх документах)
+   db.reviews.countDocuments({ "aspects.parking" : { "$lte" : 2 } }) = 7189
+
+4) Додавання нового поля лише одному документу без ALTER TABLE
+   { "_id" : 1, "rating" : 3, "moderation" : { "status" : "approved", "by" : "auto" } }
+
+5) $push у вкладений масив (додати фото до відгуку) і $pull назад
+   фото у відгуку #2: 1
+
+6) Топ-5 тегів по всій мережі ($unwind + $group + $sort + $limit)
+   гарний-вид             10245
+   паркінг                10047
+   для-дітей              10035
+   pet-friendly           10035
+   великі-порції          10029
+
+7) explain() запиту 'останні 20 відгуків ресторану з тегом' — використовується індекс:
+   index = restaurant_tags_createdAt, docsExamined = 20, keysExamined = 20, nReturned = 20
+

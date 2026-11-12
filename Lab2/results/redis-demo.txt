@@ -1,0 +1,52 @@
+[SQL target: docker]
+== Redis 7.2.17 ==
+
+1) STRING + TTL — кеш активного меню (cache-aside поверх SQL)
+   cache MISS -> читаємо з SQL і кладемо в Redis: 310,10 ms, 41,2 KB
+   cache HIT  -> з Redis: 5,34 ms
+   TTL menu:active = 300 c
+   середнє на 1000 запитах: SQL 1,662 ms vs Redis 0,465 ms (x3,6)
+   після зміни ціни: DEL menu:active -> EXISTS = False
+
+2) HASH — поточний стан столиків ресторану
+   HGETALL: #1=free, #2=free, #3=occupied, #4=free, #5=reserved, #6=occupied, #7=free, #8=free
+   HGET стіл 3: occupied
+   вільних: 5 з 8
+
+3) LIST — черга замовлень на кухню (FIFO)
+   LLEN = 3
+   LRANGE 0 -1: {"orderId":103,"ta… | {"orderId":102,"ta… | {"orderId":101,"ta…
+   кухар взяв (RPOP): {"orderId":101,"table":3,"items":["Борщ класичний","Вареники домашній"]}
+   залишилось: 2
+
+4) SORTED SET — рейтинг популярних страв за сьогодні
+   1. Борщ класичний               137 шт.
+   2. Вареники класичний           58 шт.
+   3. Деруни класичний             34 шт.
+   4. Голубці класичний            32 шт.
+   5. Банош класичний              32 шт.
+   місце 'Салат Цезар класичний' у рейтингу: 10
+
+5) STRING + EXPIRE / INCR — сесія офіціанта і rate-limit
+   SET session:85fdea70549a … EX 28800 -> GET: {"userId":2,"role":"Офіціант","restaurantId":1}
+   TTL: 8,0 год
+   спроба 1: OK
+   спроба 2: OK
+   спроба 3: OK
+   спроба 4: OK
+   спроба 5: OK
+   спроба 6: ВІДХИЛЕНО
+   спроба 7: ВІДХИЛЕНО
+
+6) MULTI/EXEC — атомарно: посадити гостей за стіл + додати замовлення в чергу
+   EXEC -> виконано; стіл 2 = occupied
+   повторна спроба зайняти стіл 2 -> відхилено (стіл вже зайнятий)
+
+7) PUB/SUB — кухня сповіщає офіціантів, що замовлення готове
+   PUBLISH -> отримувачів: 1; офіціант отримав: {"orderId":101,"table":3}
+
+8) SCAN — усі ключі ресторану та їх типи
+   restaurant:1:popular:2026-11-09          SortedSet
+   restaurant:1:kitchen:queue               List
+   restaurant:1:tables                      Hash
+

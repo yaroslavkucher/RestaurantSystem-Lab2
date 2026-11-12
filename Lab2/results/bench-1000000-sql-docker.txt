@@ -1,0 +1,58 @@
+[SQL target: docker]
+== Benchmark: 1 000 000 відгуків у кожній БД, множник ітерацій x1 ==
+
+Перевірка коректності: SQL і MongoDB повертають ідентичні дані (200 випадкових Id + сторінка + агрегація) ✓
+
+0. Baseline round-trip (SELECT 1 / ping)
+   MS SQL                 median     0,730 ms   p95     1,285 ms   mean     0,808 ms
+   MongoDB                median     0,563 ms   p95     0,803 ms   mean     0,582 ms
+1. Відгук за Id (повний агрегат)
+   MongoDB                median     0,739 ms   p95     1,224 ms   mean     0,853 ms
+   MS SQL                 median     2,789 ms   p95     4,574 ms   mean     3,030 ms
+2. 20 останніх відгуків ресторану
+   MS SQL                 median     3,869 ms   p95     6,463 ms   mean     4,162 ms
+   MongoDB                median     1,300 ms   p95     2,001 ms   mean     1,410 ms
+3. 20 останніх відгуків ресторану з тегом
+   MongoDB                median     1,297 ms   p95     1,863 ms   mean     1,393 ms
+   MS SQL                 median     5,421 ms   p95     7,065 ms   mean     5,497 ms
+4. Рейтинг страв ресторану (агрегація)
+   MS SQL                 median    42,011 ms   p95    50,297 ms   mean    42,844 ms
+   MongoDB                median    96,079 ms   p95   109,059 ms   mean    97,185 ms
+5. Середні оцінки за аспектами (агрегація)
+   MongoDB                median   123,393 ms   p95   139,476 ms   mean   125,346 ms
+   MS SQL                 median    47,510 ms   p95    60,743 ms   mean    48,994 ms
+6. Рейтинг усіх ресторанів (full scan)
+   MS SQL                 median    38,718 ms   p95    54,845 ms   mean    39,130 ms
+   MongoDB                median   810,878 ms   p95   967,661 ms   mean   829,141 ms
+7. Відповідь адміністрації (update)
+   MongoDB (j:true)       median     4,337 ms   p95     7,941 ms   mean     4,612 ms
+   MongoDB                median     0,698 ms   p95     1,026 ms   mean     0,749 ms
+   MS SQL (delayed dur.)  median     0,962 ms   p95     1,525 ms   mean     1,027 ms
+   MS SQL                 median     4,402 ms   p95     9,212 ms   mean     5,507 ms
+8. Вставка 1 відгуку (з усіма дочірніми)
+   MS SQL                 median    10,626 ms   p95    16,033 ms   mean    11,306 ms
+   MS SQL (delayed dur.)  median     7,191 ms   p95    11,522 ms   mean     7,804 ms
+   MongoDB                median     0,813 ms   p95     1,155 ms   mean     0,856 ms
+   MongoDB (j:true)       median     2,540 ms   p95     4,356 ms   mean     2,853 ms
+9. Пакетна вставка 1000 відгуків
+   MongoDB (j:true)       median    53,149 ms   p95    59,582 ms   mean    53,238 ms
+   MongoDB                median    42,252 ms   p95    44,447 ms   mean    42,111 ms
+   MS SQL (delayed dur.)  median   188,723 ms   p95   223,362 ms   mean   184,649 ms
+   MS SQL                 median   163,889 ms   p95   245,655 ms   mean   183,845 ms
+
+================ ПІДСУМОК (медіана, мс) ================
+0. Baseline round-trip (SELECT 1 / ping)                   SQL     0,730 | Mongo     0,563 | MongoDB швидше в 1,30x
+1. Відгук за Id (повний агрегат)                           SQL     2,789 | Mongo     0,739 | MongoDB швидше в 3,77x
+2. 20 останніх відгуків ресторану                          SQL     3,869 | Mongo     1,300 | MongoDB швидше в 2,98x
+3. 20 останніх відгуків ресторану з тегом                  SQL     5,421 | Mongo     1,297 | MongoDB швидше в 4,18x
+4. Рейтинг страв ресторану (агрегація)                     SQL    42,011 | Mongo    96,079 | SQL швидше в 2,29x
+5. Середні оцінки за аспектами (агрегація)                 SQL    47,510 | Mongo   123,393 | SQL швидше в 2,60x
+6. Рейтинг усіх ресторанів (full scan)                     SQL    38,718 | Mongo   810,878 | SQL швидше в 20,94x
+7. Відповідь адміністрації (update) [durable]              SQL     4,402 | Mongo     4,337 | MongoDB швидше в 1,02x
+7. Відповідь адміністрації (update) [fast ack]             SQL     0,962 | Mongo     0,698 | MongoDB швидше в 1,38x
+8. Вставка 1 відгуку (з усіма дочірніми) [durable]         SQL    10,626 | Mongo     2,540 | MongoDB швидше в 4,18x
+8. Вставка 1 відгуку (з усіма дочірніми) [fast ack]        SQL     7,191 | Mongo     0,813 | MongoDB швидше в 8,84x
+9. Пакетна вставка 1000 відгуків [durable]                 SQL   163,889 | Mongo    53,149 | MongoDB швидше в 3,08x
+9. Пакетна вставка 1000 відгуків [fast ack]                SQL   188,723 | Mongo    42,252 | MongoDB швидше в 4,47x
+
+Збережено: D:\Навчання\3 курс\СТБД\RestaurantSystem\Lab2\results\bench-1000000-sql-docker.md

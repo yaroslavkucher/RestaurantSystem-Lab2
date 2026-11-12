@@ -1,0 +1,62 @@
+# =====================================================================
+# ЛР2. Базові команди Redis для ресторанної системи.
+# Запуск (redis-cli не розуміє коментарі, тому відфільтровуємо їх):
+#   grep -v "^#" Database/redis-commands.txt | docker exec -i restaurant-redis redis-cli
+# =====================================================================
+
+# ---------- STRING + TTL: кеш меню (cache-aside)
+SET menu:active "[{\"id\":1,\"name\":\"Борщ класичний\",\"price\":150.5}]" EX 300
+GET menu:active
+TTL menu:active
+EXISTS menu:active
+DEL menu:active
+EXISTS menu:active
+
+# ---------- HASH: стан столиків
+DEL restaurant:1:tables
+HSET restaurant:1:tables 1 free 2 free 3 occupied 4 reserved
+HGET restaurant:1:tables 3
+HSET restaurant:1:tables 1 occupied
+HGETALL restaurant:1:tables
+HLEN restaurant:1:tables
+HDEL restaurant:1:tables 4
+
+# ---------- LIST: черга на кухню (FIFO)
+DEL restaurant:1:kitchen:queue
+LPUSH restaurant:1:kitchen:queue "{\"orderId\":101,\"table\":3}"
+LPUSH restaurant:1:kitchen:queue "{\"orderId\":102,\"table\":6}"
+LRANGE restaurant:1:kitchen:queue 0 -1
+RPOP restaurant:1:kitchen:queue
+LLEN restaurant:1:kitchen:queue
+
+# ---------- SORTED SET: топ страв дня
+DEL restaurant:1:popular:today
+ZINCRBY restaurant:1:popular:today 5 "Борщ класичний"
+ZINCRBY restaurant:1:popular:today 3 "Вареники домашній"
+ZINCRBY restaurant:1:popular:today 1 "Чізкейк класичний"
+ZINCRBY restaurant:1:popular:today 2 "Вареники домашній"
+ZREVRANGE restaurant:1:popular:today 0 2 WITHSCORES
+ZREVRANK restaurant:1:popular:today "Чізкейк класичний"
+EXPIRE restaurant:1:popular:today 172800
+
+# ---------- INCR + EXPIRE: rate limit бронювань
+DEL ratelimit:reservation:+380671234567
+INCR ratelimit:reservation:+380671234567
+EXPIRE ratelimit:reservation:+380671234567 60
+INCR ratelimit:reservation:+380671234567
+GET ratelimit:reservation:+380671234567
+
+# ---------- MULTI/EXEC: атомарно зайняти стіл і відправити замовлення на кухню
+MULTI
+HSET restaurant:1:tables 2 occupied
+LPUSH restaurant:1:kitchen:queue "{\"orderId\":104,\"table\":2}"
+EXEC
+
+# ---------- PUB/SUB (повідомлення отримає клієнт, що виконав SUBSCRIBE restaurant:1:order-ready)
+PUBLISH restaurant:1:order-ready "{\"orderId\":101,\"table\":3}"
+
+# ---------- огляд ключів
+SCAN 0 MATCH restaurant:1:* COUNT 100
+TYPE restaurant:1:tables
+TYPE restaurant:1:kitchen:queue
+TYPE restaurant:1:popular:today

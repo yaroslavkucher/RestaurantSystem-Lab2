@@ -1,0 +1,37 @@
+name: restaurant-lab2
+
+services:
+  mongo:
+    image: mongo:7.0
+    container_name: restaurant-mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+
+  # SQL Server у тому ж Docker, що й MongoDB — щоб порівняння було в однакових умовах
+  # (той самий мережевий шлях localhost -> WSL2, ті самі CPU/RAM віртуальної машини).
+  mssql:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: restaurant-mssql
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: "Lab2_Restaurant!Pass"   # тестовий пароль локального dev-контейнера
+    ports:
+      - "14330:1433"
+    volumes:
+      - mssql-data:/var/opt/mssql
+
+  redis:
+    image: redis:7.2
+    container_name: restaurant-redis
+    ports:
+      - "6380:6379"
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+
+volumes:
+  mongo-data:
+  redis-data:
+  mssql-data:
